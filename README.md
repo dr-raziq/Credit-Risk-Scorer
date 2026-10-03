@@ -119,3 +119,4 @@ Structure
     |_ render.yaml
     |_ README.md
     |_ .gitignore
+    |_ LICENSE
