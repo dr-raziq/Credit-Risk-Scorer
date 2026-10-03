@@ -7,7 +7,14 @@ from api.schemas import LoanApplication, PredictionResponse
 from src.feature_engineer import NUMERIC_FEATURES, CATEGORICAL_FEATURES, get_feature_names
 from src.scoring import probability_to_score, score_to_risk_band, get_decision
 from src.explain import get_shap_explainer, explain_single
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
+@app.get("/")
+def serve_frontend():
+    return FileResponse("frontend/index.html")
+
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
 app = FastAPI(title="Credit Risk Scorer", version="1.0.0")
 
 app.add_middleware(
