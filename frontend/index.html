@@ -5,77 +5,376 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Credit Risk Scorer</title>
     <style>
-        body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
-        label { display: block; margin-top: 0.75rem; font-weight: 600; }
-        input, select { width: 100%; padding: 0.4rem; margin-top: 0.25rem; }
-        button { margin-top: 1rem; padding: 0.6rem 1.2rem; cursor: pointer; }
-        pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            max-width: 720px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            color: #1a1a1a;
+            line-height: 1.5;
+        }
+        h1 { margin-bottom: 0.25rem; font-size: 1.6rem; }
+        h2 { margin-top: 2rem; font-size: 1.2rem; }
+        .sub { color: #555; margin-top: 0; font-size: 0.95rem; }
+        label {
+            display: block;
+            margin-top: 0.75rem;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #333;
+        }
+        input, select {
+            width: 100%;
+            padding: 0.5rem;
+            margin-top: 0.25rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            font-family: inherit;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #1a56db;
+            box-shadow: 0 0 0 2px rgba(26, 86, 219, 0.15);
+        }
+        button {
+            margin-top: 1.25rem;
+            padding: 0.65rem 1.4rem;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            background: #1a56db;
+            color: #fff;
+            font-size: 0.95rem;
+            font-weight: 600;
+            font-family: inherit;
+        }
+        button:hover:not(:disabled) { background: #1442a8; }
+        button:disabled { background: #999; cursor: not-allowed; }
+        pre {
+            background: #f6f8fa;
+            padding: 1rem;
+            overflow-x: auto;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            min-height: 3rem;
+        }
+        .status {
+            font-size: 0.8rem;
+            margin-top: 0.75rem;
+            padding: 0.4rem 0.6rem;
+            border-radius: 4px;
+            background: #f0f0f0;
+        }
+        .status.ok { color: #0a5a2d; background: #e6f4ea; }
+        .status.error { color: #8a0a1a; background: #fdecea; }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0 1rem;
+        }
+        @media (max-width: 540px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+        .result-ok { border-left: 4px solid #0a7a3d; }
+        .result-error { border-left: 4px solid #b00020; }
     </style>
 </head>
 <body>
     <h1>Credit Risk Scorer</h1>
-    <p>Enter loan application details to get a prediction with explanation.</p>
-    <form id="form">
-        <label>Loan Amount <input type="number" name="loan_amnt" value="15000" required></label>
-        <label>Interest Rate (%) <input type="number" step="0.01" name="int_rate" value="12.5" required></label>
-        <label>Annual Income <input type="number" name="annual_inc" value="60000" required></label>
-        <label>Debt-to-Income Ratio <input type="number" step="0.01" name="dti" value="15.0" required></label>
-        <label>FICO Low <input type="number" name="fico_range_low" value="680" required></label>
-        <label>FICO High <input type="number" name="fico_range_high" value="684" required></label>
-        <label>Employment Length
-            <select name="emp_length">
-                <option value="10+ years">10+ years</option>
-                <option value="5 years">5 years</option>
-                <option value="2 years">2 years</option>
-                <option value="< 1 year">&lt; 1 year</option>
-            </select>
-        </label>
-        <label>Home Ownership
-            <select name="home_ownership">
-                <option value="RENT">RENT</option>
-                <option value="MORTGAGE">MORTGAGE</option>
-                <option value="OWN">OWN</option>
-            </select>
-        </label>
-        <label>Purpose
-            <select name="purpose">
-                <option value="debt_consolidation">Debt Consolidation</option>
-                <option value="credit_card">Credit Card</option>
-                <option value="home_improvement">Home Improvement</option>
-            </select>
-        </label>
-        <label>Revolving Utilisation <input type="number" step="0.01" name="revol_util" value="45.0" required></label>
-        <label>Total Accounts <input type="number" name="total_acc" value="20" required></label>
-        <label>Open Accounts <input type="number" name="open_acc" value="10" required></label>
-        <label>Delinquencies (2y) <input type="number" name="delinq_2yrs" value="0" required></label>
-        <label>Inquiries (6m) <input type="number" name="inq_last_6mths" value="1" required></label>
-        <button type="submit">Score Application</button>
+    <p class="sub">
+        Enter loan application details to receive a default probability, a credit score
+        between 300 and 850, a risk band, an automated decision, and a SHAP-based
+        local explanation.
+    </p>
+
+    <form id="form" autocomplete="off">
+        <div class="grid">
+            <div>
+                <label for="loan_amnt">Loan Amount (USD)</label>
+                <input type="number" id="loan_amnt" name="loan_amnt"
+                       value="15000" min="1" step="1" required>
+            </div>
+            <div>
+                <label for="int_rate">Interest Rate (%)</label>
+                <input type="number" id="int_rate" name="int_rate"
+                       value="12.5" min="0.01" step="0.01" required>
+            </div>
+            <div>
+                <label for="annual_inc">Annual Income (USD)</label>
+                <input type="number" id="annual_inc" name="annual_inc"
+                       value="60000" min="1" step="1" required>
+            </div>
+            <div>
+                <label for="dti">Debt-to-Income Ratio</label>
+                <input type="number" id="dti" name="dti"
+                       value="15.0" min="0" step="0.01" required>
+            </div>
+            <div>
+                <label for="fico_range_low">FICO Low</label>
+                <input type="number" id="fico_range_low" name="fico_range_low"
+                       value="680" min="300" max="850" step="1" required>
+            </div>
+            <div>
+                <label for="fico_range_high">FICO High</label>
+                <input type="number" id="fico_range_high" name="fico_range_high"
+                       value="684" min="300" max="850" step="1" required>
+            </div>
+            <div>
+                <label for="emp_length">Employment Length</label>
+                <select id="emp_length" name="emp_length">
+                    <option value="10+ years">10+ years</option>
+                    <option value="9 years">9 years</option>
+                    <option value="8 years">8 years</option>
+                    <option value="7 years">7 years</option>
+                    <option value="6 years">6 years</option>
+                    <option value="5 years" selected>5 years</option>
+                    <option value="4 years">4 years</option>
+                    <option value="3 years">3 years</option>
+                    <option value="2 years">2 years</option>
+                    <option value="1 year">1 year</option>
+                    <option value="&lt; 1 year">&lt; 1 year</option>
+                </select>
+            </div>
+            <div>
+                <label for="home_ownership">Home Ownership</label>
+                <select id="home_ownership" name="home_ownership">
+                    <option value="RENT" selected>RENT</option>
+                    <option value="MORTGAGE">MORTGAGE</option>
+                    <option value="OWN">OWN</option>
+                    <option value="OTHER">OTHER</option>
+                </select>
+            </div>
+            <div>
+                <label for="purpose">Purpose</label>
+                <select id="purpose" name="purpose">
+                    <option value="debt_consolidation" selected>Debt Consolidation</option>
+                    <option value="credit_card">Credit Card</option>
+                    <option value="home_improvement">Home Improvement</option>
+                    <option value="major_purchase">Major Purchase</option>
+                    <option value="small_business">Small Business</option>
+                    <option value="car">Car</option>
+                    <option value="medical">Medical</option>
+                    <option value="moving">Moving</option>
+                    <option value="vacation">Vacation</option>
+                    <option value="house">House</option>
+                    <option value="renewable_energy">Renewable Energy</option>
+                    <option value="educational">Educational</option>
+                    <option value="wedding">Wedding</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div>
+                <label for="revol_util">Revolving Utilisation (%)</label>
+                <input type="number" id="revol_util" name="revol_util"
+                       value="45.0" min="0" step="0.01" required>
+            </div>
+            <div>
+                <label for="total_acc">Total Accounts</label>
+                <input type="number" id="total_acc" name="total_acc"
+                       value="20" min="0" step="1" required>
+            </div>
+            <div>
+                <label for="open_acc">Open Accounts</label>
+                <input type="number" id="open_acc" name="open_acc"
+                       value="10" min="0" step="1" required>
+            </div>
+            <div>
+                <label for="delinq_2yrs">Delinquencies (last 2 years)</label>
+                <input type="number" id="delinq_2yrs" name="delinq_2yrs"
+                       value="0" min="0" step="1" required>
+            </div>
+            <div>
+                <label for="inq_last_6mths">Inquiries (last 6 months)</label>
+                <input type="number" id="inq_last_6mths" name="inq_last_6mths"
+                       value="1" min="0" step="1" required>
+            </div>
+        </div>
+
+        <button type="submit" id="submitBtn">Score Application</button>
     </form>
+
+    <p class="status" id="status">Checking API connection...</p>
+
     <h2>Result</h2>
     <pre id="result">Submit the form to see the prediction.</pre>
 
     <script>
-        const API_URL = window.location.origin.includes("localhost")
+        // When served from FastAPI at "/", the API is on the same origin (empty prefix).
+        // When opened directly from disk with file://, fall back to localhost.
+        const API_URL = window.location.protocol === "file:"
             ? "http://localhost:8000"
-            : "https://your-api.onrender.com"; // replace after deployment
+            : "";
 
-        document.getElementById("form").addEventListener("submit", async (e) => {
-            e.preventDefault();
-            const form = e.target;
+        // Fields that must be integers, not floats.
+        const INT_FIELDS = new Set([
+            "fico_range_low",
+            "fico_range_high",
+            "total_acc",
+            "open_acc",
+            "delinq_2yrs",
+            "inq_last_6mths"
+        ]);
+
+        const CATEGORICAL_FIELDS = ["emp_length", "home_ownership", "purpose"];
+
+        const form = document.getElementById("form");
+        const resultEl = document.getElementById("result");
+        const statusEl = document.getElementById("status");
+        const submitBtn = document.getElementById("submitBtn");
+
+        function setStatus(message, kind) {
+            statusEl.textContent = message;
+            statusEl.className = "status" + (kind ? " " + kind : "");
+        }
+
+        function originLabel() {
+            return API_URL || window.location.origin;
+        }
+
+        async function checkHealth() {
+            setStatus("Checking API connection at " + originLabel() + " ...", null);
+            try {
+                const res = await fetch(API_URL + "/health", { method: "GET" });
+                if (!res.ok) {
+                    throw new Error("HTTP " + res.status);
+                }
+                const data = await res.json();
+                if (data.status === "ok" && data.model_loaded) {
+                    setStatus(
+                        "API connected. Model loaded with "
+                        + data.feature_count
+                        + " features.",
+                        "ok"
+                    );
+                } else if (data.status === "ok") {
+                    setStatus(
+                        "API reachable but model is not loaded. "
+                        + "Check the server logs.",
+                        "error"
+                    );
+                } else {
+                    setStatus("API responded with unexpected payload.", "error");
+                }
+            } catch (err) {
+                setStatus(
+                    "Cannot reach API at " + originLabel()
+                    + ". Start the server with: "
+                    + "uvicorn api.main:app --reload --port 8000",
+                    "error"
+                );
+            }
+        }
+
+        function buildPayload() {
             const payload = {};
-            for (const el of form.elements) {
-                if (el.name) {
-                    payload[el.name] = el.type === "number" ? parseFloat(el.value) : el.value;
+            const formData = new FormData(form);
+
+            for (const [key, rawValue] of formData.entries()) {
+                if (rawValue === "") {
+                    throw new Error("Field '" + key + "' is empty.");
+                }
+
+                if (CATEGORICAL_FIELDS.includes(key)) {
+                    payload[key] = rawValue;
+                    continue;
+                }
+
+                if (INT_FIELDS.has(key)) {
+                    const parsed = parseInt(rawValue, 10);
+                    if (Number.isNaN(parsed)) {
+                        throw new Error("Field '" + key + "' must be an integer.");
+                    }
+                    payload[key] = parsed;
+                } else {
+                    const parsed = parseFloat(rawValue);
+                    if (Number.isNaN(parsed)) {
+                        throw new Error("Field '" + key + "' must be a number.");
+                    }
+                    payload[key] = parsed;
                 }
             }
-            const res = await fetch(`${API_URL}/predict`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            document.getElementById("result").textContent = JSON.stringify(data, null, 2);
+
+            // Ensure categorical fields are always included even if FormData omits them.
+            for (const key of CATEGORICAL_FIELDS) {
+                if (!(key in payload)) {
+                    const value = formData.get(key);
+                    if (!value) {
+                        throw new Error("Field '" + key + "' is missing.");
+                    }
+                    payload[key] = value;
+                }
+            }
+
+            return payload;
+        }
+
+        function formatDetail(detail) {
+            if (typeof detail === "string") return detail;
+            try {
+                return JSON.stringify(detail, null, 2);
+            } catch (e) {
+                return String(detail);
+            }
+        }
+
+        form.addEventListener("submit", async function (event) {
+            event.preventDefault();
+            submitBtn.disabled = true;
+            resultEl.textContent = "Scoring...";
+            resultEl.className = "";
+
+            try {
+                const payload = buildPayload();
+
+                const res = await fetch(API_URL + "/predict", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                const text = await res.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (parseErr) {
+                    throw new Error(
+                        "Server returned a non-JSON response: "
+                        + text.slice(0, 300)
+                    );
+                }
+
+                if (!res.ok) {
+                    const detail = data && data.detail
+                        ? formatDetail(data.detail)
+                        : "HTTP " + res.status;
+                    throw new Error(detail);
+                }
+
+                resultEl.textContent = JSON.stringify(data, null, 2);
+                resultEl.className = "result-ok";
+                setStatus(
+                    "Prediction received. Decision: "
+                    + data.decision
+                    + ", score: "
+                    + data.credit_score + ".",
+                    "ok"
+                );
+            } catch (err) {
+                resultEl.textContent = "Error: " + err.message;
+                resultEl.className = "result-error";
+                setStatus("Request failed.", "error");
+            } finally {
+                submitBtn.disabled = false;
+            }
         });
+
+        checkHealth();
     </script>
 </body>
 </html>
